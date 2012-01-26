@@ -10,6 +10,7 @@
  (NB Pass the -excludecommon and -excludewords to exclude common and your own wordlists to convert. Useful for template pages)
 - Convert symbol-system. Will take the word. Look up in the image dictionary the closest symbol and rewrite any following licenced symbol area. 
 """
+import pdb
 import os.path, re
 from lxml import etree
 import getopt, sys, csv
@@ -28,11 +29,18 @@ def filetolist(file):
     return l
 
 def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
-                excludewords=False,excludehidden=False,outputwordlists=True,
-                outputcsv=False,rewritegrids=False,ignoregrids=[],ignorecells=[]):
+                excludehidden=False,outputwordlists=True,
+                ignoregrids=[],ignorecells=[], singlefile=False, outputcsv=False):
+# gridxml,outputpath,userdir,excludehidden,outputwordlists, ignoregrids, ignorecells, singlefile, outputcsv
     '''
     Parse Grid.xml files recursively. Extract Vocabulary and store it out as CSV files and/or as Wordlist files
     '''
+
+    # outputing to single file?
+    if(singlefile):
+        if(outputwordlists):
+            file_out = open(outputpath + 'wordlist.xml', 'wb')
+            wordlist = etree.Element("wordlist")
 
     for r,d,f in os.walk(userdir+"Grids"):
         page = os.path.split(r)[1]
@@ -40,46 +48,69 @@ def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
             for files in f:
                 if files.endswith("grid.xml"):
                     pth = os.path.join(r,files)
-                    if (outputwordlists):
+                    # Check to see if output directory specified, if not output to the Grid directories.
+                    if (outputpath == '.'):
                         outputpath = r + '/'
+                        outinplace = True
                     else:
                         outputpath = outputpath + '/'
+                        outinplace=False
                     if (outputcsv):
                         vocabWriter = UnicodeWriter(open(outputpath + page + '.csv', 'wb'), delimiter=',', quotechar='"')
                     tree = etree.parse(pth)
                     # does it have a licencekey? Bugger if it has 
-                    if(tree.xpath(".//licencekey") != False):
+                    if(tree.xpath(".//licencekey") == []):
+## NOT SURE ABOUT THIS TEST... ???? SJ
+                        readpictures = True
+                    else:
                         # So this grid is licenced. Dont try and read the pictures
                         readpictures = False
-                    else:
-                        readpictures = True
                     cells = tree.xpath(".//cell")
                     if(outputwordlists):
-                        wordlist = etree.Element("wordlist")
+                        if(singlefile == False):
+                            wordlist = etree.Element("wordlist")
                     for cell in cells:
                         tt = ''.join(cell.xpath("(.//caption)/text()"))
-                        if  tt not in ignorecells:
-                            if ''.join(cell.xpath(".//hidden/text()")) != '1':
+                        if tt != '':
+                            # We are only interested if there is a caption
+## (AT LEAST WE ARE FOR WORDLISTS ???? TBC) ??? SJ
+                            if  tt not in ignorecells:
+                                if ''.join(cell.xpath(".//hidden/text()")) != '1':
+                                    if(outputwordlists):
+                                        word = etree.SubElement(wordlist, "word")
+                                    cellchildren = cell.getchildren()
+                                    vocabtext = picture = ''
+                                    for cellchild in cellchildren:
+                                        if cellchild.tag == "caption":
+                                            vocabtext = cellchild.text
+                                            if(outputwordlists):
+                                                wordtext = etree.SubElement(word, "wordtext")
+                                                wordtext.text = etree.CDATA(vocabtext)
+                                        elif ((readpictures==True) and (cellchild.tag == 'picture')):
+                                            picture = cellchild.text
+                                            if(outputwordlists):
+                                                picturefile = etree.SubElement(word, "picturefile")
+                                                picturefile.text = picture
+                        if(singlefile == False):
+                            if(outinplace):
+                                if (outputcsv):
+                                    vocabWriter.writerow([pth,cell.get('x'),cell.get('y'),vocabtext,picture])
                                 if(outputwordlists):
-                                    word = etree.SubElement(wordlist, "word")
-                                cellchildren = cell.getchildren()
-                                vocabtext = picture = ''
-                                for cellchild in cellchildren:
-                                    if cellchild.tag == "caption":
-                                        vocabtext = cellchild.text
-                                        if(outputwordlists):
-                                            wordtext = etree.SubElement(word, "wordtext")
-                                            wordtext.text = etree.CDATA(vocabtext)
-                                    elif ((readpictures==True) and (cellchild.tag == 'picture')):
-                                        picture = cellchild.text
-                                        if(outputwordlists):
-                                            picturefile = etree.SubElement(word, "picturefile")
-                                            picturefile.text = picture
-                        if (outputcsv):
-                            vocabWriter.writerow([pth,cell.get('x'),cell.get('y'),vocabtext,picture])
-                        if(outputwordlists):
-                            f = open( outputpath + 'wordlist.xml', 'wb')
-                            f.write(etree.tostring(wordlist, pretty_print=True, encoding='iso-8859-1'))
+                                    # Writing multiple files to Grid folders
+                                    file_out = open( outputpath + 'wordlist.xml', 'wb')
+                                    file_out.write(etree.tostring(wordlist, pretty_print=True, encoding='iso-8859-1'))
+                            else:
+                                if(outputwordlists):
+                                    # writing multiple files to output folder
+                                    file_out = open(outputpath + page +'.xml', 'wb')
+                                    file_out.write(etree.tostring(wordlist, pretty_print=True, encoding='iso-8859-1'))
+
+    # Write out to a single file after itterating the loop
+    if(singlefile == True):
+        if(outputwordlists):
+            file_out.write(etree.tostring(wordlist, pretty_print=True, encoding='iso-8859-1'))
+
+          
                         
                         
 def usage():
@@ -97,26 +128,31 @@ def usage():
     -g, --ignoregrids=   - Exclude grids listed from a text file (e.g, back, jump)
     -x, --excludehidden - Exclude hidden cells from the analysis
     -w, --wordlists     - Output wordlists
+    -s, --singlefile    - single file wordlist output into one file?  Otherwise, will write to seperate files (in the name of the grid)
     
     Requirements:
-    Python 2.7.1, Lxml, unicodecsv
+    Python 2.3, Lxml, unicodecsv
     
     Author:
     Will Wade, will@e-wade.net
-    """ 
+    """              
                     
 def main():
     gridxml='grid.xml'
-    excludehidden=False
-    outputwordlists=False
     outputpath ='.'
     userdir='.'
-    outputcsv=False
-    ignorecells=[]
+    excludehidden=False
+    outputwordlists=False
     ignoregrids=[]
+    ignorecells=[]
+    singlefile=False
+#    excludewords=False
+#    outputcsv=False
+#    rewritegrids=False
+
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "houwxe:v", ["help", "output=", "userdir=","exclude","excludehidden","wordlists","ignorecells=","ignoregrids="])
+        opts, args = getopt.getopt(sys.argv[1:], "houcgxwsv", ["help", "output=", "userdir=","ignorecells=","ignoregrids=","excludehidden","wordlists", "singlefile"])
     except getopt.GetoptError, err:
         # print help information and exit:
         print str(err) # will print something like "option -a not recognized"
@@ -140,24 +176,27 @@ def main():
                 userdir = os.path.normpath(a) + '/'
             else:
                 assert False, "non-existent user directory: " + os.path.normpath(a) + '/'
+        elif o in ("-x", "--excludehidden"):
+            excludehidden = True       
+        elif o in ("-w", "--wordlists"):
+            outputwordlists = True
+        elif o in ("-g", "--ignoregrids"):
+            if os.path.exists(os.path.normpath(a)):                
+                ignoregrids = filetolist(os.path.normpath(a))
+            else:
+                assert False, "non-existent ignoregrids file: " + os.path.normpath(a) 
         elif o in ("-c", "--ignorecells"):
             if os.path.exists(os.path.normpath(a)):
                 ignorecells = filetolist(os.path.normpath(a))
             else:
                 assert False, "non-existent ignorecells file: " + os.path.normpath(a)
-        elif o in ("-g", "--ignoregrids"):
-            if os.path.exists(os.path.normpath(a)):                
-                ignorecells = filetolist(os.path.normpath(a))
-            else:
-                assert False, "non-existent ignoregrids file: " + os.path.normpath(a) 
-        elif o in ("-x", "--exclidehidden"):
-            excludehidden = True       
-        elif o in ("-w", "--wordlists"):
-            outputwordlists = True           
+        elif o in ("-s", "--singlefile"):
+            singlefile = True
         else:
             assert False, "unhandled option"
     
-    parse_grids(gridxml,outputpath,userdir,excludehidden,outputwordlists,ignorecells,ignoregrids)
+    parse_grids(gridxml,outputpath,userdir,excludehidden,outputwordlists, ignoregrids, ignorecells, singlefile)
+# gridxml,outputpath,userdir,excludehidden,outputwordlists, ignoregrids, ignorecells, singlefile
 
 if __name__ == "__main__":
     main()
