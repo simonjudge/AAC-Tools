@@ -1,0 +1,7 @@
+back
+go back
+speak
+backspace
+clear
+
+undo
