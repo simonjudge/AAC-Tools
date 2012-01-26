@@ -36,11 +36,21 @@ def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
     Parse Grid.xml files recursively. Extract Vocabulary and store it out as CSV files and/or as Wordlist files
     '''
 
+    # outputing to Grid folders or other output folder?
+    # Check to see if output directory specified, if not output to the Grid directories.
+    if (outputpath == '.'):
+        outinplace = True
+    else:
+        outputpath = outputpath + '/'
+        outinplace=False 
+
     # outputing to single file?
     if(singlefile):
         if(outputwordlists):
             file_out = open(outputpath + 'wordlist.xml', 'wb')
             wordlist = etree.Element("wordlist")
+        if(outputcsv):
+            vocabWriter = UnicodeWriter(open(outputpath + 'vocab.csv', 'wb'), delimiter=',', quotechar='"')
 
     for r,d,f in os.walk(userdir+"Grids"):
         page = os.path.split(r)[1]
@@ -48,31 +58,30 @@ def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
             for files in f:
                 if files.endswith("grid.xml"):
                     pth = os.path.join(r,files)
-                    # Check to see if output directory specified, if not output to the Grid directories.
-                    if (outputpath == '.'):
+                    
+                    if (outinplace):                                # Check to see if output directory specified, if not output to the Grid directories.
                         outputpath = r + '/'
-                        outinplace = True
-                    else:
-                        outputpath = outputpath + '/'
-                        outinplace=False
-                    if (outputcsv):
-                        vocabWriter = UnicodeWriter(open(outputpath + page + '.csv', 'wb'), delimiter=',', quotechar='"')
-                    tree = etree.parse(pth)
-                    # does it have a licencekey? Bugger if it has 
-                    if(tree.xpath(".//licencekey") == []):
+                    tree = etree.parse(pth)                         # Parse the file
+                    if(tree.xpath(".//licencekey") == []):          # does it have a licencekey? Bugger if it has 
 ## NOT SURE ABOUT THIS TEST... ???? SJ
                         readpictures = True
                     else:
-                        # So this grid is licenced. Dont try and read the pictures
-                        readpictures = False
+                        readpictures = False                        # So this grid is licenced. Dont try and read the pictures
                     cells = tree.xpath(".//cell")
-                    if(outputwordlists):
-                        if(singlefile == False):
+
+                    if(singlefile == False):
+                        if(outputwordlists):
                             wordlist = etree.Element("wordlist")
+                        if (outputcsv):
+                            vocabWriter = UnicodeWriter(open(outputpath + page + '.csv', 'wb'), delimiter=',', quotechar='"')
+   
                     for cell in cells:
                         tt = ''.join(cell.xpath("(.//caption)/text()"))
-                        if tt != '':
-                            # We are only interested if there is a caption
+                        spokentext = ''.join(cell.xpath("(.//parameter)/text()"))
+                        if spokentext != '':
+#### IDEAllY NEED TO CHECK IF INDEX ATTRIBUTE = 1 - AS THIS IS ???? THE TEXT COMMAND (???). HOW ?? SJ.
+
+                            # We are only interested if text is being sent to the text bar.
 ## (AT LEAST WE ARE FOR WORDLISTS ???? TBC) ??? SJ
                             if  tt not in ignorecells:
                                 if ''.join(cell.xpath(".//hidden/text()")) != '1':
@@ -91,19 +100,19 @@ def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
                                             if(outputwordlists):
                                                 picturefile = etree.SubElement(word, "picturefile")
                                                 picturefile.text = picture
-                        if(singlefile == False):
-                            if(outinplace):
+                                if(singlefile == False):
+                                    if(outinplace):
+                                        if(outputwordlists):
+                                            # Writing multiple files to Grid folders
+                                            file_out = open( outputpath + 'wordlist.xml', 'wb')
+                                            file_out.write(etree.tostring(wordlist, pretty_print=True, encoding='iso-8859-1'))
+                                    else:
+                                        if(outputwordlists):
+                                            # writing multiple files to output folder
+                                            file_out = open(outputpath + page +'.xml', 'wb')
+                                            file_out.write(etree.tostring(wordlist, pretty_print=True, encoding='iso-8859-1'))
                                 if (outputcsv):
                                     vocabWriter.writerow([pth,cell.get('x'),cell.get('y'),vocabtext,picture])
-                                if(outputwordlists):
-                                    # Writing multiple files to Grid folders
-                                    file_out = open( outputpath + 'wordlist.xml', 'wb')
-                                    file_out.write(etree.tostring(wordlist, pretty_print=True, encoding='iso-8859-1'))
-                            else:
-                                if(outputwordlists):
-                                    # writing multiple files to output folder
-                                    file_out = open(outputpath + page +'.xml', 'wb')
-                                    file_out.write(etree.tostring(wordlist, pretty_print=True, encoding='iso-8859-1'))
 
     # Write out to a single file after itterating the loop
     if(singlefile == True):
@@ -146,13 +155,12 @@ def main():
     ignoregrids=[]
     ignorecells=[]
     singlefile=False
-#    excludewords=False
-#    outputcsv=False
+    outputcsv=False
 #    rewritegrids=False
 
 
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "houcgxwsv", ["help", "output=", "userdir=","ignorecells=","ignoregrids=","excludehidden","wordlists", "singlefile"])
+        opts, args = getopt.getopt(sys.argv[1:], "houcgxwsdv", ["help", "output=", "userdir=","ignorecells=","ignoregrids=","excludehidden","wordlists", "singlefile", "dataascsv"])
     except getopt.GetoptError, err:
         # print help information and exit:
         print str(err) # will print something like "option -a not recognized"
@@ -192,10 +200,13 @@ def main():
                 assert False, "non-existent ignorecells file: " + os.path.normpath(a)
         elif o in ("-s", "--singlefile"):
             singlefile = True
+        elif o in ("-d", "--dataascsv"):
+            outputcsv = True
+
         else:
             assert False, "unhandled option"
     
-    parse_grids(gridxml,outputpath,userdir,excludehidden,outputwordlists, ignoregrids, ignorecells, singlefile)
+    parse_grids(gridxml,outputpath,userdir,excludehidden,outputwordlists, ignoregrids, ignorecells, singlefile, outputcsv)
 # gridxml,outputpath,userdir,excludehidden,outputwordlists, ignoregrids, ignorecells, singlefile
 
 if __name__ == "__main__":
