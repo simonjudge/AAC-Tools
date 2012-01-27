@@ -77,12 +77,10 @@ def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
    
                     for cell in cells:
                         tt = ''.join(cell.xpath("(.//caption)/text()"))
-                        spokentext = ''.join(cell.xpath("(.//parameter)/text()"))
-                        if spokentext != '':
-#### IDEAllY NEED TO CHECK IF INDEX ATTRIBUTE = 1 - AS THIS IS ???? THE TEXT COMMAND (???). HOW ?? SJ.
-
-                            # We are only interested if text is being sent to the text bar.
-## (AT LEAST WE ARE FOR WORDLISTS ???? TBC) ??? SJ
+                        command_id = cell.xpath(".//id/text()")                 # Check the /Paramter/ID value to check if 'type' - i.e. being sent to the text bar.
+## NOT PERFECT - need to grab text sent to text bar rahter than caption...
+                        if "type" in command_id or "speaknow" in command_id:    # We are only interested if text is being sent to the text bar or being spoken directly.
+                        #if tt != '':                                           # UNCOMMENT TO INCLUDE ALL CELLS WITH A CAPTION.
                             if  tt not in ignorecells:
                                 if ''.join(cell.xpath(".//hidden/text()")) != '1':
                                     if(outputwordlists):
@@ -90,29 +88,39 @@ def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
                                     cellchildren = cell.getchildren()
                                     vocabtext = picture = ''
                                     for cellchild in cellchildren:
-                                        if cellchild.tag == "caption":
-                                            vocabtext = cellchild.text
-                                            if(outputwordlists):
-                                                wordtext = etree.SubElement(word, "wordtext")
-                                                wordtext.text = etree.CDATA(vocabtext)
-                                        elif ((readpictures==True) and (cellchild.tag == 'picture')):
-                                            picture = cellchild.text
-                                            if(outputwordlists):
-                                                picturefile = etree.SubElement(word, "picturefile")
-                                                picturefile.text = picture
-                                if(singlefile == False):
-                                    if(outinplace):
-                                        if(outputwordlists):
-                                            # Writing multiple files to Grid folders
-                                            file_out = open( outputpath + 'wordlist.xml', 'wb')
-                                            file_out.write(etree.tostring(wordlist, pretty_print=True, encoding='iso-8859-1'))
-                                    else:
-                                        if(outputwordlists):
-                                            # writing multiple files to output folder
-                                            file_out = open(outputpath + page +'.xml', 'wb')
-                                            file_out.write(etree.tostring(wordlist, pretty_print=True, encoding='iso-8859-1'))
-                                if (outputcsv):
-                                    vocabWriter.writerow([pth,cell.get('x'),cell.get('y'),vocabtext,picture])
+                                        # Check if the cell has a type of speak command and if so save the text(s).
+                                        commands = cellchild.getchildren()
+                                        for command in commands:
+                                            id = command.find("id")
+                                            if id.text == "type" or "speaknow":
+                                                parameters = command.findall("parameter")
+                                                for parameter in parameters:
+                                                    if "1" in parameter.xpath(".//@index"):
+                                                        vocabtext = parameter.text 
+                                                        if(outputwordlists):
+                                                            wordtext = etree.SubElement(word, "wordtext")
+                                                            wordtext.text = etree.CDATA(vocabtext)
+                                                # Check if the cell has a picture (symbol) and if so save the picture path.
+                                                #pdb.set_trace()
+                                                picture = ''.join(cell.xpath(".//picture/text()"))
+                                                if ((readpictures==True) and (picture != [])):
+                                                    if(outputwordlists):
+                                                        picturefile = etree.SubElement(word, "picturefile")
+                                                        picturefile.text = picture
+                                                if (outputcsv):
+                                                    vocabWriter.writerow([pth,cell.get('x'),cell.get('y'),vocabtext,picture])
+
+                    if(singlefile == False):
+                        if(outinplace):
+                            if(outputwordlists):
+                                # Writing multiple files to Grid folders
+                                file_out = open( outputpath + 'wordlist.xml', 'wb')
+                                file_out.write(etree.tostring(wordlist, pretty_print=True, encoding='iso-8859-1'))
+                        else:
+                            if(outputwordlists):
+                                # writing multiple files to output folder
+                                file_out = open(outputpath + page +'.xml', 'wb')
+                                file_out.write(etree.tostring(wordlist, pretty_print=True, encoding='iso-8859-1'))
 
     # Write out to a single file after itterating the loop
     if(singlefile == True):
