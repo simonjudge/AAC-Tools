@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: cp1252 -*-
 # Contact: Will Wade <will@e-wade.net>
 # Date: Jan 2012
 
@@ -95,13 +96,12 @@ def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
                                             if id.text == "type" or "speaknow":
                                                 parameters = command.findall("parameter")
                                                 for parameter in parameters:
-                                                    if "1" in parameter.xpath(".//@index"):
-                                                        vocabtext = parameter.text 
+                                                    if "1" in parameter.xpath(".//@index"):                                
+                                                        vocabtext = parameter.text.strip()          # Grid seems to add Asquiggle charchters to the text if there is a space in the text output. Luckily python strip ditches them!
                                                         if(outputwordlists):
                                                             wordtext = etree.SubElement(word, "wordtext")
                                                             wordtext.text = etree.CDATA(vocabtext)
                                                 # Check if the cell has a picture (symbol) and if so save the picture path.
-                                                #pdb.set_trace()
                                                 picture = ''.join(cell.xpath(".//picture/text()"))
                                                 if ((readpictures==True) and (picture != [])):
                                                     if(outputwordlists):
@@ -115,17 +115,17 @@ def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
                             if(outputwordlists):
                                 # Writing multiple files to Grid folders
                                 file_out = open( outputpath + 'wordlist.xml', 'wb')
-                                file_out.write(etree.tostring(wordlist, pretty_print=True, encoding='iso-8859-1'))
+                                file_out.write('<?xml version="1.0" encoding="UTF-8"?>' + etree.tostring(wordlist, pretty_print=True, encoding='utf-8'))
                         else:
                             if(outputwordlists):
                                 # writing multiple files to output folder
                                 file_out = open(outputpath + page +'.xml', 'wb')
-                                file_out.write(etree.tostring(wordlist, pretty_print=True, encoding='iso-8859-1'))
+                                file_out.write('<?xml version="1.0" encoding="UTF-8"?>' + etree.tostring(wordlist, pretty_print=True, encoding='utf-8'))
 
     # Write out to a single file after itterating the loop
     if(singlefile == True):
         if(outputwordlists):
-            file_out.write(etree.tostring(wordlist, pretty_print=True, encoding='iso-8859-1'))
+            file_out.write('<?xml version="1.0" encoding="UTF-8"?>' + etree.tostring(wordlist, pretty_print=True, encoding='utf-8'))
 
           
                         
