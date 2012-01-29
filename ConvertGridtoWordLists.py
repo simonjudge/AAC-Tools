@@ -48,12 +48,13 @@ def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
     # outputing to single file?
     if(singlefile):
         if(outputwordlists):
-            file_out = open(outputpath + 'wordlist.xml', 'wb')
+            gridsetname =  os.path.split(os.path.normpath(userdir))[1]
+            file_out = open(outputpath +  gridsetname +'.xml', 'wb')
             wordlist = etree.Element("wordlist")
         if(outputcsv):
             vocabWriter = UnicodeWriter(open(outputpath + 'vocab.csv', 'wb'), delimiter=',', quotechar='"')
-
-    for r,d,f in os.walk(userdir+"Grids"):
+    
+    for r,d,f in os.walk(userdir):                                  # Parse any directory, only picking up on grid.xml files.
         page = os.path.split(r)[1]
         if page not in ignoregrids:
             for files in f:
