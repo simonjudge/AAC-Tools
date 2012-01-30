@@ -12,7 +12,7 @@
 - Convert symbol-system. Will take the word. Look up in the image dictionary the closest symbol and rewrite any following licenced symbol area. 
 """
 import pdb
-import os.path, re
+import os.path, errno, re
 from lxml import etree
 import getopt, sys, csv
 from unicodecsv import UnicodeWriter  
@@ -48,7 +48,6 @@ def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
     # outputing to single file?
     if(singlefile):
         if(outputwordlists):
-            gridsetname =  os.path.split(os.path.normpath(userdir))[1]
             file_out = open(outputpath +  gridsetname +'.xml', 'wb')
             wordlist = etree.Element("wordlist")
         if(outputcsv):
@@ -58,7 +57,10 @@ def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
         page = os.path.split(r)[1]
         if page not in ignoregrids:
             for files in f:
+
+
                 if files.endswith("grid.xml"):
+
                     pth = os.path.join(r,files)
                     
                     if (outinplace):                                # Check to see if output directory specified, if not output to the Grid directories.
@@ -70,12 +72,24 @@ def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
                     else:
                         readpictures = False                        # So this grid is licenced. Dont try and read the pictures
                     cells = tree.xpath(".//cell")
-
+                        
                     if(singlefile == False):
                         if(outputwordlists):
                             wordlist = etree.Element("wordlist")
                         if (outputcsv):
                             vocabWriter = UnicodeWriter(open(outputpath + page + '.csv', 'wb'), delimiter=',', quotechar='"')
+
+                    # Add in data from any existing wordlists!
+                    wordlistpath = os.path.dirname(pth) + "\wordlist.xml" 
+                    if os.path.isfile(wordlistpath):                # wordlist exists for this grid. Need to add the wordlist data to the uber wordlist.
+                        wordlistwordlist = etree.parse(wordlistpath)
+                        root = wordlistwordlist.getroot()
+                        
+                        for wordx in root.iterfind("word"):     # MORE EFFICIENT METHOD???
+                            if outputwordlists:
+                                wordlist.append(wordx)
+                            if outputcsv:
+                                vocabWriter.writerow([pth,"wordlist","wordlist",str(wordx.findtext("wordtext")),str(wordx.findtext("picturefile"))])
    
                     for cell in cells:
                         tt = ''.join(cell.xpath("(.//caption)/text()"))
@@ -94,22 +108,24 @@ def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
                                         commands = cellchild.getchildren()
                                         for command in commands:
                                             id = command.find("id")
-                                            if id.text == "type" or "speaknow":
-                                                parameters = command.findall("parameter")
-                                                for parameter in parameters:
-                                                    if "1" in parameter.xpath(".//@index"):                                
-                                                        vocabtext = parameter.text.strip()          # Grid seems to add Asquiggle charchters to the text if there is a space in the text output. Luckily python strip ditches them!
+                                            if id is not None:
+                                                if id.text == "type" or "speaknow":
+                                                    parameters = command.findall("parameter")
+                                                    for parameter in parameters:
+                                                        if "1" in parameter.xpath(".//@index"):                                
+                                                            vocabtext = parameter.text.strip()          # Grid seems to add Asquiggle charchters to the text if there is a space in the text output. Luckily python strip ditches them!
+                                                            if(outputwordlists):
+                                                                wordtext = etree.SubElement(word, "wordtext")
+                                                                wordtext.text = etree.CDATA(vocabtext)
+                                                    # Check if the cell has a picture (symbol) and if so save the picture path.
+## Potential for blank words, if cell has symbol, but no text. What to do about this???
+                                                    picture = ''.join(cell.xpath(".//picture/text()"))
+                                                    if ((readpictures==True) and (picture != [])):
                                                         if(outputwordlists):
-                                                            wordtext = etree.SubElement(word, "wordtext")
-                                                            wordtext.text = etree.CDATA(vocabtext)
-                                                # Check if the cell has a picture (symbol) and if so save the picture path.
-                                                picture = ''.join(cell.xpath(".//picture/text()"))
-                                                if ((readpictures==True) and (picture != [])):
-                                                    if(outputwordlists):
-                                                        picturefile = etree.SubElement(word, "picturefile")
-                                                        picturefile.text = picture
-                                                if (outputcsv):
-                                                    vocabWriter.writerow([pth,cell.get('x'),cell.get('y'),vocabtext,picture])
+                                                            picturefile = etree.SubElement(word, "picturefile")
+                                                            picturefile.text = picture
+                                                    if (outputcsv):
+                                                        vocabWriter.writerow([pth,cell.get('x'),cell.get('y'),vocabtext,picture])
 
                     if(singlefile == False):
                         if(outinplace):
@@ -119,8 +135,14 @@ def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
                                 file_out.write('<?xml version="1.0" encoding="UTF-8"?>' + etree.tostring(wordlist, pretty_print=True, encoding='utf-8'))
                         else:
                             if(outputwordlists):
-                                # writing multiple files to output folder
-                                file_out = open(outputpath + page +'.xml', 'wb')
+                                # writing multiple files to output folder (make a folder for the grids, name them by the page).
+                                gridsetname =  os.path.normpath(pth).split(os.sep)[-4]      # Relies on structure being /Grid DIR/GridSet NAME/Grids/PAge Name/
+                                try:
+                                    os.mkdir(outputpath + '/'+ gridsetname)
+                                except OSError, e:
+                                    if e.errno != errno.EEXIST:
+                                        raise
+                                file_out = open(outputpath + '/' + gridsetname + '/' + page +'.xml', 'wb')
                                 file_out.write('<?xml version="1.0" encoding="UTF-8"?>' + etree.tostring(wordlist, pretty_print=True, encoding='utf-8'))
 
     # Write out to a single file after itterating the loop
@@ -147,6 +169,10 @@ def usage():
     -x, --excludehidden - Exclude hidden cells from the analysis
     -w, --wordlists     - Output wordlists
     -s, --singlefile    - single file wordlist output into one file?  Otherwise, will write to seperate files (in the name of the grid)
+
+    Example Usage:
+    ConvertGridtoWordLists.py --userdir="Path\To\Your\Grid2\User\Folder"  --output="Path\To\Dump\Output" -w
+
     
     Requirements:
     Python 2.3, Lxml, unicodecsv
