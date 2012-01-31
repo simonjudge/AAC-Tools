@@ -26,12 +26,13 @@ def uniqueSet(dupedList):
 
 def parse_wordlist(wordlistdir='.', outputpath='.', anyxml = False):
     lsummary_out = UnicodeWriter(open(outputpath + 'linguistic-metrics.csv', 'wb'), delimiter=',', quotechar='"')
-    lsummary_out.writerow(["File Name", "Total Words or Phrases", "Total Unique Words or Phrases", "Total Words", "Total Phrases", "Types of Word"])
+    lsummary_out.writerow(["File Name", "Total Words or Phrases", "Total Unique Words or Phrases", "Total Words", "Total Phrases", "Total Unique Words", "Total Unique Phrases", "Types of Word"])
     donedirs = []
-    words = []
+    uwords = []
     word_types = []
     wordtypes =[]
     phrases =[]
+    uphrases =[]
     allwords = []
 
     total_wordsphrases = total_uwordsphrases = total_words = total_phrases = 0
@@ -85,8 +86,10 @@ def parse_wordlist(wordlistdir='.', outputpath='.', anyxml = False):
                         total_wordsphrases = total_uwordsphrases = total_words = total_phrases = 0
 
                         raw_words_out = open(outputpath + '/'+ donedirs[-2] +'/raw-words.text', 'wb')
+                        raw_words_out.writelines('\n'.join(words))
                         raw_phrases_out = open(outputpath + '/'+ donedirs[-2] +'/raw-phrases.txt', 'wb')
-
+                        raw_phrases_out.writelines('\n'.join(phrases))
+                        
                         words = []
                         word_types = []
                         wordtypes =[]
@@ -110,7 +113,7 @@ def parse_wordlist(wordlistdir='.', outputpath='.', anyxml = False):
        if num_words == 1:                          # Single word
           word_type = nltk.pos_tag(item)[-1][-1]
           ldata_out.writerow([item, str(num_words), str(item_count), word_type])
-          words.append(item)
+          uwords.append(item)
           wordtypes.append(word_type)
        elif num_words > 1:                         # Phrase
           nltk_words = nltk.word_tokenize(item)
@@ -120,17 +123,28 @@ def parse_wordlist(wordlistdir='.', outputpath='.', anyxml = False):
 # HOW TO OUTPUT EACH POS TO A COLUMN???
           phrases.append(item)
 
+    uphrases = uniqueSet(phrases)
     uword_types = countDuplicatesInList(wordtypes)
+    
     total_wordsphrases = len(allwords)
     total_uwordsphrases = len(uniqueWords)
-    total_words = len(words)
+    total_words = len(allwords)
     total_phrases = len(phrases)
+    total_uwords = len(uwords)
+    total_uphrases = len(uphrases)
     
-    lsummary_out.writerow([gridset, str(total_wordsphrases), str(total_uwordsphrases), str(total_words), str(total_phrases), ', '.join(map(str, uword_types))])
+    
+    lsummary_out.writerow([gridset, str(total_wordsphrases), str(total_uwordsphrases), str(total_words), str(total_phrases), str(total_uwords), str(total_uphrases), ', '.join(map(str, uword_types))])
 
+    raw_words_out = open(outputpath + '/'+ gridset +'/raw-unique-words.text', 'wb')
+    raw_words_out.writelines('\n'.join(uniqueWords))
+    raw_phrases_out = open(outputpath + '/'+ gridset +'/raw-unique-phrases.txt', 'wb')
+    raw_phrases_out.writelines('\n'.join(uphrases))
     raw_words_out = open(outputpath + '/'+ gridset +'/raw-words.text', 'wb')
+    raw_words_out.writelines('\n'.join(allwords))
     raw_phrases_out = open(outputpath + '/'+ gridset +'/raw-phrases.txt', 'wb')
-
+    raw_phrases_out.writelines('\n'.join(phrases))
+    
     words = []
     word_types = []
     wordtypes =[]

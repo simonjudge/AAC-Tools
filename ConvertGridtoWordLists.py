@@ -88,6 +88,7 @@ def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
                         for wordx in root.iterfind("word"):     # MORE EFFICIENT METHOD???
                             if outputwordlists:
                                 wordlist.append(wordx)
+# HOW TO MAKE IT CDATA?
                             if outputcsv:
                                 vocabWriter.writerow([pth,"wordlist","wordlist",str(wordx.findtext("wordtext")),str(wordx.findtext("picturefile"))])
    
