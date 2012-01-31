@@ -32,6 +32,7 @@ def parse_wordlist(wordlistdir='.', outputpath='.', anyxml = False):
     word_types = []
     wordtypes =[]
     phrases =[]
+    allwords = []
 
     total_wordsphrases = total_uwordsphrases = total_words = total_phrases = 0
 
@@ -55,53 +56,85 @@ def parse_wordlist(wordlistdir='.', outputpath='.', anyxml = False):
                     ldata_out.writerow(["WORD", "NUMBER OF WORDS", "COUNT", "TYPE"])
                     
                     if len(donedirs)>1:                                 # Write raw data and summary data after recursing a directory.  
-                        #pdb.set_trace()
+                        
+                        uniqueWords = uniqueSet(allwords)              # Set of unique words.
+                       # Output metrics to file.
+                        for item in uniqueWords:
+                           num_words = len(item.split())
+                           item_count = allwords.count(item)
+                           if num_words == 1:                          # Single word
+                              word_type = nltk.pos_tag(item)[-1][-1]
+                              ldata_out.writerow([item, str(num_words), str(item_count), word_type])
+                              words.append(item)
+                              wordtypes.append(word_type)
+                           elif num_words > 1:                         # Phrase
+                              nltk_words = nltk.word_tokenize(item)
+                              word_pos = nltk.pos_tag(nltk_words) ### HOW TO DEAL WITH PHRASES???
+                              word_types = [x[1] for x in word_pos]
+                              ldata_out.writerow([item, str(num_words), str(item_count), " ,".join(word_types)])
+                    # HOW TO OUTPUT EACH POS TO A COLUMN???
+                              phrases.append(item)
+
+                        uword_types = countDuplicatesInList(wordtypes)
+                        total_wordsphrases = len(allwords)
+                        total_uwordsphrases = len(uniqueWords)
+                        total_words = len(words)
+                        total_phrases = len(phrases)
+                        
                         lsummary_out.writerow([donedirs[-2], str(total_wordsphrases), str(total_uwordsphrases), str(total_words), str(total_phrases), ', '.join(map(str, uword_types))])
                         total_wordsphrases = total_uwordsphrases = total_words = total_phrases = 0
 
                         raw_words_out = open(outputpath + '/'+ donedirs[-2] +'/raw-words.text', 'wb')
-                        raw_words_out.writelines('\n'.join(words))
                         raw_phrases_out = open(outputpath + '/'+ donedirs[-2] +'/raw-phrases.txt', 'wb')
-                        raw_phrases_out.writelines('\n'.join(phrases))
+
                         words = []
                         word_types = []
                         wordtypes =[]
                         phrases =[]
+                        allwords = []
 
                 tree = etree.parse(filepth)
                 #Ok many ways to do this
-                allwords = tree.xpath("(//wordlist//word//wordtext)/text()")
-                # how many times is a word/phrase mentioned?     
-                uniqueWords = uniqueSet(allwords)              # Set of unique words.
-               # Output metrics to file.
-                for item in uniqueWords:
-                   num_words = len(item.split())
-                   item_count = allwords.count(item)
-                   if num_words == 1:                          # Single word
-                      word_type = nltk.pos_tag(item)[-1][-1]
-                      ldata_out.writerow([item, str(num_words), str(item_count), word_type])
-                      words.append(item)
-                      wordtypes.append(word_type)
-                   elif num_words > 1:                         # Phrase
-                      nltk_words = nltk.word_tokenize(item)
-                      word_pos = nltk.pos_tag(nltk_words) ### HOW TO DEAL WITH PHRASES???
-                      word_types = [x[1] for x in word_pos]
-                      ldata_out.writerow([item, str(num_words), str(item_count), " ,".join(word_types)])
-            # HOW TO OUTPUT EACH POS TO A COLUMN???
-                      phrases.append(item)
+                allwords += tree.xpath("(//wordlist//word//wordtext)/text()")
+                # how many times is a word/phrase mentioned?
 
-                uword_types = countDuplicatesInList(wordtypes)
-                total_wordsphrases += len(allwords)
-                total_uwordsphrases += len(uniqueWords)
-                total_words += len(words)
-                total_phrases += len(phrases)
-
+                ############# WRITE AT END OF DIR.
+    
+ 
     # Write data out for the last folder (gridset) encountered - MUST BE A BETTER WAY THAN THIS?
+    uniqueWords = uniqueSet(allwords)              # Set of unique words.
+   # Output metrics to file.
+    for item in uniqueWords:
+       num_words = len(item.split())
+       item_count = allwords.count(item)
+       if num_words == 1:                          # Single word
+          word_type = nltk.pos_tag(item)[-1][-1]
+          ldata_out.writerow([item, str(num_words), str(item_count), word_type])
+          words.append(item)
+          wordtypes.append(word_type)
+       elif num_words > 1:                         # Phrase
+          nltk_words = nltk.word_tokenize(item)
+          word_pos = nltk.pos_tag(nltk_words) ### HOW TO DEAL WITH PHRASES???
+          word_types = [x[1] for x in word_pos]
+          ldata_out.writerow([item, str(num_words), str(item_count), " ,".join(word_types)])
+# HOW TO OUTPUT EACH POS TO A COLUMN???
+          phrases.append(item)
+
+    uword_types = countDuplicatesInList(wordtypes)
+    total_wordsphrases = len(allwords)
+    total_uwordsphrases = len(uniqueWords)
+    total_words = len(words)
+    total_phrases = len(phrases)
+    
     lsummary_out.writerow([gridset, str(total_wordsphrases), str(total_uwordsphrases), str(total_words), str(total_phrases), ', '.join(map(str, uword_types))])
+
     raw_words_out = open(outputpath + '/'+ gridset +'/raw-words.text', 'wb')
-    raw_words_out.writelines('\n'.join(words))
     raw_phrases_out = open(outputpath + '/'+ gridset +'/raw-phrases.txt', 'wb')
-    raw_phrases_out.writelines('\n'.join(phrases))
+
+    words = []
+    word_types = []
+    wordtypes =[]
+    phrases =[]
 
 
     
