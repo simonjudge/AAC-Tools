@@ -25,21 +25,15 @@ def uniqueSet(dupedList):
     return uniqueSet
 
 def parse_wordlist(wordlistdir='.', outputpath='.', anyxml = False):
+# MOVE THIS INITIALISATION TO IN THE FOR LOOOP TO AVOID BLANK FILES AT END. TEST.
     lsummary_out = UnicodeWriter(open(outputpath + 'linguistic-metrics.csv', 'wb'), delimiter=',', quotechar='"')
     lsummary_out.writerow(["File Name", "Total Words or Phrases", "Total Unique Words or Phrases", "Total Words", "Total Phrases", "Total Unique Words", "Total Unique Phrases", "Types of Word"])
     donedirs = []
-    uwords = []
-    word_types = []
-    wordtypes =[]
-    phrases =[]
-    uphrases =[]
-    allwords = []
-
-    total_wordsphrases = total_uwordsphrases = total_words = total_phrases = 0
+    allwordsphrases = []
+    gridset = ''
 
     for r,dirs,files in os.walk(wordlistdir):                  # Parse any directory, picking up on either wordlist.xml or any xml files (USE with CARE)!
         for filename in files:                                      # Assume that xml files are organised in directories according to the Gridset. Will not currently work when parsing Grid user folders (it will do the stats per page)
-
             if (anyxml == True and filename.endswith(".xml")) or (anyxml == False and filename.endswith("wordlist.xml")):
                 
                 filepth = os.path.join(r,filename)
@@ -52,64 +46,35 @@ def parse_wordlist(wordlistdir='.', outputpath='.', anyxml = False):
                     except OSError, e:
                         if e.errno != errno.EEXIST:
                             raise
-                        
-                    ldata_out = UnicodeWriter(open(outputpath + '/'+ gridset +'/language-data.csv', 'wb'), delimiter=',', quotechar='"')
-                    ldata_out.writerow(["WORD", "NUMBER OF WORDS", "COUNT", "TYPE"])
-                    
-                    if len(donedirs)>1:                                 # Write raw data and summary data after recursing a directory.  
-                        
-                        uniqueWords = uniqueSet(allwords)              # Set of unique words.
-                       # Output metrics to file.
-                        for item in uniqueWords:
-                           num_words = len(item.split())
-                           item_count = allwords.count(item)
-                           if num_words == 1:                          # Single word
-                              word_type = nltk.pos_tag(item)[-1][-1]
-                              ldata_out.writerow([item, str(num_words), str(item_count), word_type])
-                              words.append(item)
-                              wordtypes.append(word_type)
-                           elif num_words > 1:                         # Phrase
-                              nltk_words = nltk.word_tokenize(item)
-                              word_pos = nltk.pos_tag(nltk_words) ### HOW TO DEAL WITH PHRASES???
-                              word_types = [x[1] for x in word_pos]
-                              ldata_out.writerow([item, str(num_words), str(item_count), " ,".join(word_types)])
-                    # HOW TO OUTPUT EACH POS TO A COLUMN???
-                              phrases.append(item)
-
-                        uword_types = countDuplicatesInList(wordtypes)
-                        total_wordsphrases = len(allwords)
-                        total_uwordsphrases = len(uniqueWords)
-                        total_words = len(words)
-                        total_phrases = len(phrases)
-                        
-                        lsummary_out.writerow([donedirs[-2], str(total_wordsphrases), str(total_uwordsphrases), str(total_words), str(total_phrases), ', '.join(map(str, uword_types))])
-                        total_wordsphrases = total_uwordsphrases = total_words = total_phrases = 0
-
-                        raw_words_out = open(outputpath + '/'+ donedirs[-2] +'/raw-words.text', 'wb')
-                        raw_words_out.writelines('\n'.join(words))
-                        raw_phrases_out = open(outputpath + '/'+ donedirs[-2] +'/raw-phrases.txt', 'wb')
-                        raw_phrases_out.writelines('\n'.join(phrases))
-                        
-                        words = []
-                        word_types = []
-                        wordtypes =[]
-                        phrases =[]
-                        allwords = []
+                                            
+                    if len(donedirs)>1:
+                        writeOut(lsummary_out, allwordsphrases, outputpath, donedirs[-2])    # Write raw data and summary data after recursing a directory.
+                        allwordsphrases = []
 
                 tree = etree.parse(filepth)
-                #Ok many ways to do this
-                allwords += tree.xpath("(//wordlist//word//wordtext)/text()")
-                # how many times is a word/phrase mentioned?
-
-                ############# WRITE AT END OF DIR.
+                allwordsphrases += tree.xpath("(//wordlist//word//wordtext)/text()")
     
+    writeOut(lsummary_out, allwordsphrases, outputpath, gridset)    # Write raw data and summary data of last directory.
+
+def writeOut(lsummary_out, allwordsphrases=[],  outputpath='.', gridset=''):    
  
     # Write data out for the last folder (gridset) encountered - MUST BE A BETTER WAY THAN THIS?
-    uniqueWords = uniqueSet(allwords)              # Set of unique words.
-   # Output metrics to file.
-    for item in uniqueWords:
+    uWordsPhrases = uniqueSet(allwordsphrases)              # Set of unique words.
+    uwords =[]
+    uphrases = []
+    words = []
+    phrases =[]
+    wordtypes =[]
+    wordtypes =[]
+    total_wordsphrases = total_uwordsphrases = total_words = total_phrases = 0
+
+    ldata_out = UnicodeWriter(open(outputpath + '/'+ gridset +'/language-data.csv', 'wb'), delimiter=',', quotechar='"')
+    ldata_out.writerow(["WORD", "NUMBER OF WORDS", "COUNT", "TYPE"])
+    
+   # Output metrics  to file.
+    for item in uWordsPhrases:
        num_words = len(item.split())
-       item_count = allwords.count(item)
+       item_count = allwordsphrases.count(item)
        if num_words == 1:                          # Single word
           word_type = nltk.pos_tag(item)[-1][-1]
           ldata_out.writerow([item, str(num_words), str(item_count), word_type])
@@ -121,35 +86,36 @@ def parse_wordlist(wordlistdir='.', outputpath='.', anyxml = False):
           word_types = [x[1] for x in word_pos]
           ldata_out.writerow([item, str(num_words), str(item_count), " ,".join(word_types)])
 # HOW TO OUTPUT EACH POS TO A COLUMN???
-          phrases.append(item)
+          uphrases.append(item)
 
-    uphrases = uniqueSet(phrases)
+    for item in allwordsphrases:
+        num_words = len(item.split())
+        if num_words == 1:
+            words.append(item)
+        elif num_words > 1:
+            phrases.append(item)
+        
     uword_types = countDuplicatesInList(wordtypes)
     
-    total_wordsphrases = len(allwords)
-    total_uwordsphrases = len(uniqueWords)
-    total_words = len(allwords)
-    total_phrases = len(phrases)
+    total_wordsphrases = len(allwordsphrases)
+    total_uwordsphrases = len(uWordsPhrases)
     total_uwords = len(uwords)
     total_uphrases = len(uphrases)
+
+    total_words = len(words)
+    total_phrases = len(phrases)
     
-    
+    #["File Name", "Total Words or Phrases", "Total Unique Words or Phrases", "Total Words", "Total Phrases", "Total Unique Words", "Total Unique Phrases", "Types of Word"])
     lsummary_out.writerow([gridset, str(total_wordsphrases), str(total_uwordsphrases), str(total_words), str(total_phrases), str(total_uwords), str(total_uphrases), ', '.join(map(str, uword_types))])
 
     raw_words_out = open(outputpath + '/'+ gridset +'/raw-unique-words.text', 'wb')
-    raw_words_out.writelines('\n'.join(uniqueWords))
+    raw_words_out.writelines('\n'.join(uWordsPhrases).encode('utf-8'))
     raw_phrases_out = open(outputpath + '/'+ gridset +'/raw-unique-phrases.txt', 'wb')
-    raw_phrases_out.writelines('\n'.join(uphrases))
-    raw_words_out = open(outputpath + '/'+ gridset +'/raw-words.text', 'wb')
-    raw_words_out.writelines('\n'.join(allwords))
-    raw_phrases_out = open(outputpath + '/'+ gridset +'/raw-phrases.txt', 'wb')
-    raw_phrases_out.writelines('\n'.join(phrases))
-    
-    words = []
-    word_types = []
-    wordtypes =[]
-    phrases =[]
+    raw_phrases_out.writelines('\n'.join(uphrases).encode('utf-8'))
+    raw_words_out = open(outputpath + '/'+ gridset +'/raw-wordsphrases.text', 'wb')
+    raw_words_out.writelines('\n'.join(allwordsphrases).encode('utf-8'))
 
+    
 
     
 def usage():
