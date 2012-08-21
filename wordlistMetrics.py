@@ -77,6 +77,8 @@ def writeOut(lsummary_out, allwordsphrases=[],  outputpath='.', gridset=''):
        item_count = allwordsphrases.count(item)
        if num_words == 1:                          # Single word
           word_type = nltk.pos_tag(item)[-1][-1]
+          #word_type_help = nltk.help.upenn_tagset(word_type)
+# MAYBE CONVERT TAGS INTO MORE USEFUL WORDS?!
           ldata_out.writerow([item, str(num_words), str(item_count), word_type])
           uwords.append(item)
           wordtypes.append(word_type)
