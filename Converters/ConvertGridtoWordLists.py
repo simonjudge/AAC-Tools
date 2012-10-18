@@ -212,7 +212,7 @@ def main():
 	outputpath ='.'
 	userdir='.'
 	excludehidden=False
-	outputwordlists=False
+	outputwordlists=True
 	ignoregrids=[]
 	ignorecells=[]
 	blackliststyles=[]
