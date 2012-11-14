@@ -1,4 +1,6 @@
 sentence starters
-social and yes no etc
-text only
-descriptors
+starter jump
+tool
+tool jump
+Jump cell
+Blank cell (no style)

@@ -127,10 +127,13 @@ def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
 																	# Ignore writing if no text, or text is smaller than min word size, or text is not letters.
 																		word = etree.SubElement(wordlist, "word")
 																		wordtext = etree.SubElement(word, "wordtext")
+																		#ADD SPACE TO THE END OF THE WORD IF NONE. UGLY, BUT HEY.
+																		if not vocabtext.endswith(' '):
+																			vocabtext = vocabtext + ' '
 																		wordtext.text = etree.CDATA(vocabtext)
 																		# Check if the cell has a picture (symbol) and if so save the picture path.
 																		picture = ''.join(cell.xpath(".//picture/text()"))
-																		if ((readpictures==True) and (picture != [])):   # ignore if no picture 
+																		if ((readpictures==True) and (picture != []) and (picture != '')):   # ignore if no picture 
 																			if(outputwordlists):
 																				picturefile = etree.SubElement(word, "picturefile")
 																				picturefile.text = picture

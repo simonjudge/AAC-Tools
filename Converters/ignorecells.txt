@@ -3,5 +3,13 @@ go back
 speak
 backspace
 clear
-
 undo
+
+and
+
+
+
+
+CAPITAL
+capital
+It starts with
