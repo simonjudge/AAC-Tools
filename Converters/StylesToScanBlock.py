@@ -39,8 +39,26 @@ def filetolist(file):
 
 def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
 				excludehidden=False,
-				ignoregrids=[],ignorecells=[], blackliststyles=[], stylemapping=[]):
+				ignoregrids=[],ignorecells=[], blackliststyles=[], stylemapping=[], blockscan=[]):
 	
+	# Create list of styles that are being enforced and index
+	stylelist = []
+	styleindex = []
+	blocklist = []
+	blockindex = []
+	
+	for style in stylemapping:
+		
+		stylesplit = re.split('\s+', style, maxsplit=1)
+		styleindex.append(stylesplit[0])
+		stylelist.append(stylesplit[1])
+	print stylelist
+			
+	for block in blockscan:
+		blocksplit = re.split('\s+', block, maxsplit=1)
+		blockindex.append(blocksplit[0])
+		blocklist.append(blocksplit[1])
+		
 
  	if (outputpath == '.'):
 		outinplace = True
@@ -72,11 +90,27 @@ def parse_grids(gridxml='grid.xml',outputpath='.',userdir='.',
 # Implement white list too?
 							if  tt not in ignorecells:
 						
-								if style in stylemapping:
-									#pdb.set_trace()
+								if style in stylelist:									
 									scanblock =cell.find('scanblock')
-									scanblock.text = str(2**stylemapping.index(style))
+									scanblock.text = str(2**int(styleindex[stylelist.index(style)]))
+								else:
+									scanblock =cell.find('scanblock')
+									scanblock.text = '0'
 
+					auditory = tree.find(".//auditory")
+					#pdb.set_trace()
+					if auditory:
+						auditory.clear()
+					else:
+						#pdb.set_trace()
+						root=tree.getroot()
+						auditory=etree.SubElement(root, 'auditory')
+					for block in blocklist:
+						cue=etree.SubElement(auditory,'cue')
+						cue.set('id', "blk"+blockindex[blocklist.index(block)])
+						cue.text= str(block)
+					print etree.dump(auditory)
+					
 										
 					file_out = open( outputpath + 'grid.xml', 'wb')
 					file_out.write('<?xml version="1.0" encoding="UTF-8"?>' + etree.tostring(tree, pretty_print=True, encoding='utf-8'))
@@ -102,6 +136,7 @@ def usage():
 	-b, --blackliststyles    - Exclude styles listed from a text file (e.g. colours, jumpcells)
 	-x, --excludehidden - Exclude hidden cells from the analysis
 	-s, --stylemapping	- File mapping styles to scan block. First line is scan block 0, second, block 1 etc.
+	-l, --blockscan
 
 	Example Usage:
 	StylesToScanBlock.py --userdir="C:\Documents and Settings\All Users\Documents\SensorySoftware\The Grid 2\Users\USERNAME" --ignorecells="ignorecells.txt" --ignoregrids="ignoregrids.txt" --blackliststyles="ignorestyles.txt" --stylemapping="stylemapping.txt"
@@ -122,10 +157,11 @@ def main():
 	ignorecells=[]
 	blackliststyles=[]
 	stylemapping=[]
+	blockscan=[]
 
 
 	try:
-		opts, args = getopt.getopt(sys.argv[1:], "houcgbxwsdv", ["help", "output=", "userdir=","ignorecells=","ignoregrids=", "blackliststyles=", "stylemapping="])
+		opts, args = getopt.getopt(sys.argv[1:], "houcgbxwsl", ["help", "output=", "userdir=","ignorecells=","ignoregrids=", "blackliststyles=", "stylemapping=", "blockscan="])
 	except getopt.GetoptError, err:
 		# print help information and exit:
 		print str(err) # will print something like "option -a not recognized"
@@ -171,10 +207,15 @@ def main():
 				stylemapping = filetolist(os.path.normpath(a))
 			else:
 				assert False, "non-existent blacklist styles file: " + os.path.normpath(a) 
+		elif o in ("-l", "--blockscan"):
+			if os.path.exists(os.path.normpath(a)):                
+				blockscan = filetolist(os.path.normpath(a))
+			else:
+				assert False, "non-existent blockscan styles file: " + os.path.normpath(a) 
 		else:
 			assert False, "unhandled option"
 	
-	parse_grids(gridxml,outputpath,userdir,excludehidden, ignoregrids, ignorecells, blackliststyles, stylemapping)
+	parse_grids(gridxml,outputpath,userdir,excludehidden, ignoregrids, ignorecells, blackliststyles, stylemapping, blockscan)
 
 if __name__ == "__main__":
 	main()

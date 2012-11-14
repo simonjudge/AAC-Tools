@@ -1,2 +1,8 @@
-Content
-Action cell
+0 sentence starters
+0 starter jump
+1 content
+2 endings
+3 Jump cell
+4 tool
+4 tool jump
+5 Jump cell 1
